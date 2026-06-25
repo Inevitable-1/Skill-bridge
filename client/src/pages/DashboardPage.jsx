@@ -72,7 +72,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <Link
-            to="/mentors"
+            to="/my-mentors"
             className="btn-primary flex items-center gap-2"
           >
             <Zap className="w-4 h-4" />
@@ -122,7 +122,7 @@ export default function DashboardPage() {
                   <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                     <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No sessions yet</p>
-                    <Link to="/mentors" className="text-primary-600 hover:text-primary-700 text-sm font-medium mt-2 inline-block">
+                    <Link to="/my-mentors" className="text-primary-600 hover:text-primary-700 text-sm font-medium mt-2 inline-block">
                       Find a mentor to get started
                     </Link>
                   </div>
@@ -172,14 +172,14 @@ export default function DashboardPage() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Link
-                  to="/mentors"
+                  to="/my-mentors"
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                     <Users className="w-5 h-5 text-primary-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white text-sm">Find Mentors</p>
+                    <p className="font-medium text-gray-900 dark:text-white text-sm">My Mentors</p>
                     <p className="text-xs text-gray-500">Browse by skill</p>
                   </div>
                 </Link>

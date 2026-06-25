@@ -1,26 +1,33 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { useAuth, getDashboardPath } from '../context/AuthContext';
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Logo from '../components/ui/Logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [accountStatus, setAccountStatus] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setAccountStatus(null);
     try {
-      await login(email, password);
+      const userData = await login(email, password);
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      navigate(getDashboardPath(userData.role));
     } catch (err) {
+      const status = err.response?.data?.accountStatus;
+      if (status) {
+        setAccountStatus(status);
+      }
       toast.error(err.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
@@ -36,14 +43,50 @@ export default function LoginPage() {
       >
         <div className="card p-8">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <LogIn className="w-7 h-7 text-white" />
+            <div className="flex justify-center mb-4">
+              <Logo size="large" linked={false} />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome Back</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
               Sign in to continue to SkillBridge
             </p>
           </div>
+
+          {accountStatus === 'pending' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Account Pending Approval</p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                    Your account is awaiting administrator approval. You will be able to login once approved.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {accountStatus === 'rejected' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+            >
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800 dark:text-red-300">Application Rejected</p>
+                  <p className="text-xs text-red-700 dark:text-red-400 mt-1">
+                    Your application has been rejected. Please contact support for more information.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

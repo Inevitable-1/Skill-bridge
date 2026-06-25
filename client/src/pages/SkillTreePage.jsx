@@ -7,8 +7,9 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
 import { skillAPI } from '../services/api';
-import { Search, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { Search, Maximize2, Minimize2, RefreshCw, MousePointerClick } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SkillDetailPanel from '../components/skillTree/SkillDetailPanel';
 
 const skillColors = {
   'Programming': '#6366F1',
@@ -25,8 +26,9 @@ function SkillNode({ data }) {
   const color = skillColors[data.category] || skillColors.default;
   return (
     <div
-      className="px-4 py-3 rounded-xl shadow-lg border-2 bg-white dark:bg-gray-800 min-w-[140px]"
+      className="px-4 py-3 rounded-xl shadow-lg border-2 bg-white dark:bg-gray-800 min-w-[140px] cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-200"
       style={{ borderColor: color }}
+      onClick={() => data.onClick?.(data)}
     >
       <div className="flex items-center gap-2 mb-1">
         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
@@ -68,6 +70,8 @@ export default function SkillTreePage() {
   const [loading, setLoading] = useState(true);
   const [skills, setSkills] = useState([]);
   const [expanded, setExpanded] = useState(true);
+  const [selectedSkill, setSelectedSkill] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const loadGraph = useCallback(async () => {
     setLoading(true);
@@ -97,6 +101,24 @@ export default function SkillTreePage() {
     );
   }, [nodes, search]);
 
+  const nodesWithClick = useMemo(() => {
+    return filteredNodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        onClick: (skillData) => {
+          setSelectedSkill(skillData);
+          setShowDetail(true);
+        },
+      },
+    }));
+  }, [filteredNodes]);
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedSkill(node.data);
+    setShowDetail(true);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -117,6 +139,10 @@ export default function SkillTreePage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full">
+              <MousePointerClick className="w-3.5 h-3.5" />
+              Click any skill to explore
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -149,10 +175,11 @@ export default function SkillTreePage() {
       {/* Graph */}
       <div className="flex-1 bg-gray-50 dark:bg-gray-950">
         <ReactFlow
-          nodes={filteredNodes}
+          nodes={nodesWithClick}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-left"
@@ -168,6 +195,13 @@ export default function SkillTreePage() {
           />
         </ReactFlow>
       </div>
+
+      {/* Skill Detail Panel */}
+      <SkillDetailPanel
+        skill={selectedSkill}
+        isOpen={showDetail}
+        onClose={() => setShowDetail(false)}
+      />
     </div>
   );
 }

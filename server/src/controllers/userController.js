@@ -6,7 +6,7 @@ const getProfile = async (req, res) => {
     const { id } = req.params;
 
     const userResult = await pool.query(
-      `SELECT id, name, email, branch, year, bio, avatar_url, availability,
+      `SELECT id, name, email, role, branch, year, bio, avatar_url, availability,
               online_preference, is_verified, is_online, last_seen, created_at
        FROM users WHERE id = $1`,
       [id]
@@ -133,7 +133,7 @@ const searchUsers = async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-      SELECT DISTINCT u.id, u.name, u.email, u.branch, u.year, u.bio, u.avatar_url,
+      SELECT DISTINCT u.id, u.name, u.email, u.role, u.branch, u.year, u.bio, u.avatar_url,
              u.online_preference, u.is_online, u.last_seen,
              COALESCE(AVG(r.rating), 0) as avg_rating,
              COUNT(DISTINCT r.id) as total_reviews
@@ -215,7 +215,7 @@ const getOnlineMentors = async (req, res) => {
     const { skill } = req.query;
 
     let query = `
-      SELECT DISTINCT u.id, u.name, u.branch, u.year, u.avatar_url, u.online_preference,
+      SELECT DISTINCT u.id, u.name, u.role, u.branch, u.year, u.avatar_url, u.online_preference,
              COALESCE(AVG(r.rating), 0) as avg_rating
       FROM users u
       LEFT JOIN ratings r ON u.id = r.mentor_id

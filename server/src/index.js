@@ -8,6 +8,8 @@ require('dotenv').config();
 
 const config = require('./config/constants');
 const pool = require('./config/db');
+const createTables = require('./config/migrate');
+const seed = require('./seeds/seed');
 const { verifyToken } = require('./middleware/auth');
 
 const authRoutes = require('./routes/auth');
@@ -17,6 +19,8 @@ const sessionRoutes = require('./routes/sessions');
 const chatRoutes = require('./routes/chat');
 const videoRoutes = require('./routes/video');
 const notificationRoutes = require('./routes/notifications');
+const meetingRoutes = require('./routes/meetings');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -45,6 +49,8 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/video', videoRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -52,6 +58,7 @@ app.get('/api/health', (req, res) => {
 
 const onlineUsers = new Map();
 const videoRooms = new Map();
+const meetingRooms = new Map();
 
 io.use(async (socket, next) => {
   try {
@@ -233,6 +240,227 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ─── Meeting Room Events ─────────────────────────────────
+  socket.on('join_meeting', (data) => {
+    const { roomId, userName, isHost } = data;
+    socket.join(`meeting_${roomId}`);
+
+    if (!meetingRooms.has(roomId)) {
+      meetingRooms.set(roomId, new Set());
+    }
+
+    const participantInfo = {
+      socketId: socket.id,
+      userId: socket.user.id,
+      userName: userName || socket.user.name,
+      isHost: isHost || false,
+    };
+    meetingRooms.get(roomId).add(participantInfo);
+
+    // Send existing participants to the new user
+    const existingParticipants = [];
+    for (const p of meetingRooms.get(roomId)) {
+      if (p.socketId !== socket.id) {
+        existingParticipants.push(p);
+      }
+    }
+    socket.emit('meeting_participants', { participants: existingParticipants });
+
+    // Notify others that a new user joined
+    socket.to(`meeting_${roomId}`).emit('user_joined_meeting', {
+      userId: socket.user.id,
+      userName: participantInfo.userName,
+      socketId: socket.id,
+      isHost: participantInfo.isHost,
+    });
+
+    // Store room reference on socket for cleanup
+    socket.currentRoom = roomId;
+
+    console.log(`${userName} joined meeting ${roomId} (host: ${isHost}, total: ${meetingRooms.get(roomId).size})`);
+  });
+
+  socket.on('leave_meeting', (data) => {
+    const { roomId } = data;
+    socket.leave(`meeting_${roomId}`);
+
+    if (meetingRooms.has(roomId)) {
+      for (const p of meetingRooms.get(roomId)) {
+        if (p.socketId === socket.id) {
+          meetingRooms.get(roomId).delete(p);
+          break;
+        }
+      }
+      if (meetingRooms.get(roomId).size === 0) {
+        meetingRooms.delete(roomId);
+      }
+    }
+
+    socket.to(`meeting_${roomId}`).emit('user_left_meeting', {
+      userId: socket.user.id,
+      userName: socket.user.name,
+      socketId: socket.id,
+    });
+
+    console.log(`${socket.user.name} left meeting ${roomId}`);
+  });
+
+  socket.on('meeting_signal', (data) => {
+    const { roomId, signal, targetSocketId } = data;
+    io.to(targetSocketId).emit('meeting_signal', {
+      signal,
+      fromSocketId: socket.id,
+      fromUserId: socket.user.id,
+      fromUserName: socket.user.name,
+    });
+  });
+
+  socket.on('meeting_chat_message', (data) => {
+    const { roomId, message } = data;
+    const chatMsg = {
+      id: Date.now(),
+      senderId: socket.user.id,
+      senderName: socket.user.name,
+      senderAvatar: socket.user.avatar_url,
+      text: message,
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+    io.to(`meeting_${roomId}`).emit('new_meeting_chat_message', chatMsg);
+  });
+
+  socket.on('toggle_meeting_hand', (data) => {
+    const { roomId, isHandRaised } = data;
+    socket.to(`meeting_${roomId}`).emit('user_toggled_hand', {
+      userId: socket.user.id,
+      socketId: socket.id,
+      userName: socket.user.name,
+      isHandRaised,
+    });
+  });
+
+  socket.on('toggle_meeting_mute', (data) => {
+    const { roomId, isMuted } = data;
+    socket.to(`meeting_${roomId}`).emit('user_toggled_mute', {
+      userId: socket.user.id,
+      socketId: socket.id,
+      userName: socket.user.name,
+      isMuted,
+    });
+  });
+
+  socket.on('toggle_meeting_camera', (data) => {
+    const { roomId, isCameraOff } = data;
+    socket.to(`meeting_${roomId}`).emit('user_toggled_camera', {
+      userId: socket.user.id,
+      socketId: socket.id,
+      userName: socket.user.name,
+      isCameraOff,
+    });
+  });
+
+  socket.on('toggle_meeting_lock', (data) => {
+    const { roomId, isLocked } = data;
+    socket.to(`meeting_${roomId}`).emit('meeting_locked', {
+      isLocked,
+      lockedBy: socket.user.name,
+    });
+  });
+
+  // ─── Whiteboard Sync ─────────────────────────────────────
+  socket.on('whiteboard_draw', (data) => {
+    const { roomId, drawData } = data;
+    socket.to(`meeting_${roomId}`).emit('whiteboard_draw', {
+      drawData,
+      userId: socket.user.id,
+      userName: socket.user.name,
+    });
+  });
+
+  socket.on('whiteboard_clear', (data) => {
+    const { roomId } = data;
+    socket.to(`meeting_${roomId}`).emit('whiteboard_clear', {
+      userId: socket.user.id,
+    });
+  });
+
+  socket.on('whiteboard_undo', (data) => {
+    const { roomId } = data;
+    socket.to(`meeting_${roomId}`).emit('whiteboard_undo', {
+      userId: socket.user.id,
+    });
+  });
+
+  socket.on('whiteboard_redo', (data) => {
+    const { roomId } = data;
+    socket.to(`meeting_${roomId}`).emit('whiteboard_redo', {
+      userId: socket.user.id,
+    });
+  });
+
+  // ─── Code Editor Sync ────────────────────────────────────
+  socket.on('code_change', (data) => {
+    const { roomId, change } = data;
+    socket.to(`meeting_${roomId}`).emit('code_change', {
+      change,
+      userId: socket.user.id,
+      userName: socket.user.name,
+    });
+  });
+
+  socket.on('code_language_change', (data) => {
+    const { roomId, language } = data;
+    socket.to(`meeting_${roomId}`).emit('code_language_change', {
+      language,
+      userId: socket.user.id,
+    });
+  });
+
+  socket.on('code_cursor_move', (data) => {
+    const { roomId, position } = data;
+    socket.to(`meeting_${roomId}`).emit('code_cursor_move', {
+      position,
+      userId: socket.user.id,
+      userName: socket.user.name,
+    });
+  });
+
+  socket.on('code_full_sync', (data) => {
+    const { roomId, code, language } = data;
+    socket.to(`meeting_${roomId}`).emit('code_full_sync', {
+      code,
+      language,
+      userId: socket.user.id,
+    });
+  });
+
+  socket.on('end_meeting', (data) => {
+    const { roomId } = data;
+    io.to(`meeting_${roomId}`).emit('meeting_ended', { roomId });
+    meetingRooms.delete(roomId);
+  });
+
+  socket.on('remove_participant', (data) => {
+    const { roomId, targetSocketId } = data;
+    io.to(targetSocketId).emit('removed_from_meeting', { roomId, reason: 'removed_by_host' });
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (targetSocket) {
+      targetSocket.leave(`meeting_${roomId}`);
+    }
+    if (meetingRooms.has(roomId)) {
+      for (const p of meetingRooms.get(roomId)) {
+        if (p.socketId === targetSocketId) {
+          meetingRooms.get(roomId).delete(p);
+          break;
+        }
+      }
+    }
+    socket.to(`meeting_${roomId}`).emit('user_left_meeting', {
+      userId: null,
+      userName: null,
+      socketId: targetSocketId,
+    });
+  });
+
   socket.on('disconnect', async () => {
     console.log(`User disconnected: ${socket.user.name}`);
     onlineUsers.delete(socket.user.id);
@@ -254,12 +482,44 @@ io.on('connection', (socket) => {
         if (users.size === 0) videoRooms.delete(roomId);
       }
     }
+
+    for (const [roomId, participants] of meetingRooms.entries()) {
+      for (const p of participants) {
+        if (p.socketId === socket.id) {
+          participants.delete(p);
+          io.to(`meeting_${roomId}`).emit('user_left_meeting', {
+            userId: socket.user.id,
+            userName: socket.user.name,
+            socketId: socket.id,
+          });
+          break;
+        }
+      }
+      if (participants.size === 0) {
+        meetingRooms.delete(roomId);
+      }
+    }
   });
 });
 
 const PORT = config.port;
-server.listen(PORT, () => {
-  console.log(`SkillBridge server running on port ${PORT}`);
-});
+
+const startServer = async () => {
+  try {
+    await createTables();
+    console.log('Database migration completed');
+
+    await seed();
+    console.log('Database seeded with demo accounts');
+  } catch (err) {
+    console.error('Database initialization error:', err);
+  }
+
+  server.listen(PORT, () => {
+    console.log(`SkillBridge server running on port ${PORT}`);
+  });
+};
+
+startServer();
 
 module.exports = { app, server, io };

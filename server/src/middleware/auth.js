@@ -21,7 +21,7 @@ const auth = async (req, res, next) => {
     const decoded = verifyToken(token);
 
     const result = await pool.query(
-      'SELECT id, name, email, branch, year, bio, avatar_url, is_verified, is_online FROM users WHERE id = $1',
+      'SELECT id, name, email, role, branch, year, bio, avatar_url, is_verified, is_online FROM users WHERE id = $1',
       [decoded.id]
     );
 
@@ -51,7 +51,7 @@ const optionalAuth = async (req, res, next) => {
     const token = header.split(' ')[1];
     const decoded = verifyToken(token);
     const result = await pool.query(
-      'SELECT id, name, email, branch, year, bio, avatar_url, is_verified, is_online FROM users WHERE id = $1',
+      'SELECT id, name, email, role, branch, year, bio, avatar_url, is_verified, is_online FROM users WHERE id = $1',
       [decoded.id]
     );
     if (result.rows.length > 0) {
@@ -63,4 +63,13 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { generateToken, verifyToken, auth, optionalAuth };
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+    }
+    next();
+  };
+};
+
+module.exports = { generateToken, verifyToken, auth, optionalAuth, authorizeRoles };

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 80" width="340" height="80">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0
+                0 1 0 0 0
+                0 0 1 0 0
+                0 0 0 0.6 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" result="blur"/>
+      <feOffset in="blur" dx="0" dy="1" result="offsetBlur"/>
+      <feColorMatrix in="offsetBlur" type="matrix"
+        values="0 0 0 0 0.39
+                0 0 0 0 0.4
+                0 0 0 0 0.95
+                0 0 0 0.3 0" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Icon -->
+  <g transform="translate(8, 8)">
+    <path d="M 0 36 C 8 36 12 12 24 12 C 36 12 40 36 48 36"
+          stroke="url(#grad)" stroke-width="2.5" fill="none"
+          stroke-linecap="round" filter="url(#shadow)"/>
+    <circle cx="0" cy="36" r="4.5" fill="url(#grad)" filter="url(#glow)"/>
+    <circle cx="0" cy="36" r="2" fill="white" opacity="0.85"/>
+    <circle cx="24" cy="12" r="4.5" fill="url(#grad)" filter="url(#glow)"/>
+    <circle cx="24" cy="12" r="2" fill="white" opacity="0.85"/>
+    <circle cx="48" cy="36" r="4.5" fill="url(#grad)" filter="url(#glow)"/>
+    <circle cx="48" cy="36" r="2" fill="white" opacity="0.85"/>
+  </g>
+  <!-- Text -->
+  <text x="72" y="50" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="-0.5">
+    <tspan fill="#FFFFFF">Skill</tspan><tspan fill="#6366F1">Bridge</tspan>
+  </text>
+</svg>

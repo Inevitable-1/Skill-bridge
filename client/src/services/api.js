@@ -21,9 +21,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('skillbridge_token');
-      localStorage.removeItem('skillbridge_user');
-      if (window.location.pathname !== '/login') {
+      const currentPath = window.location.pathname;
+      const isLoginPage = currentPath === '/login' || currentPath === '/register';
+      const isPublicPage = currentPath === '/' || currentPath === '/forgot-password';
+
+      if (!isLoginPage && !isPublicPage) {
+        localStorage.removeItem('skillbridge_token');
+        localStorage.removeItem('skillbridge_user');
         window.location.href = '/login';
       }
     }
@@ -84,6 +88,22 @@ export const notificationAPI = {
   addRating: (data) => api.post('/notifications/rating', data),
   getMentorRatings: (mentorId) => api.get(`/notifications/ratings/${mentorId}`),
   getLeaderboard: () => api.get('/notifications/leaderboard'),
+};
+
+export const adminAPI = {
+  getApplications: (params) => api.get('/admin/applications', { params }),
+  getApplicationDetails: (id) => api.get(`/admin/applications/${id}`),
+  approveApplication: (id) => api.post(`/admin/applications/${id}/approve`),
+  rejectApplication: (id, reason) => api.post(`/admin/applications/${id}/reject`, { reason }),
+  getStats: () => api.get('/admin/stats'),
+  getAllUsers: (params) => api.get('/admin/users', { params }),
+  getUserDetails: (id) => api.get(`/admin/users/${id}`),
+  updateUserRole: (id, role) => api.put(`/admin/users/${id}/role`, { role }),
+  suspendUser: (id) => api.put(`/admin/users/${id}/suspend`),
+  activateUser: (id) => api.put(`/admin/users/${id}/activate`),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
+  getAllMeetings: (params) => api.get('/admin/meetings', { params }),
+  getAllSessions: (params) => api.get('/admin/sessions', { params }),
 };
 
 export default api;

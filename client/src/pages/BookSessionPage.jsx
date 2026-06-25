@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { userAPI, sessionAPI } from '../services/api';
 import {
   Calendar, Clock, BookOpen, Video, MessageCircle,
-  Target, Mic, ArrowLeft, CheckCircle
+  Target, Mic, ArrowLeft, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -15,7 +15,15 @@ const sessionTypes = [
     description: 'Get a quick answer to your question',
     icon: MessageCircle,
     color: 'yellow',
-    duration: '15-30 min',
+    duration: '15 min',
+  },
+  {
+    id: 'emergency_help',
+    name: 'Emergency Help',
+    description: 'Urgent help for immediate issues',
+    icon: AlertTriangle,
+    color: 'red',
+    duration: '25 min',
   },
   {
     id: 'learning',
@@ -31,7 +39,7 @@ const sessionTypes = [
     description: 'Get help with your project',
     icon: Target,
     color: 'green',
-    duration: '60-90 min',
+    duration: '90 min',
   },
   {
     id: 'interview_prep',
@@ -39,7 +47,7 @@ const sessionTypes = [
     description: 'Practice and prepare for interviews',
     icon: Mic,
     color: 'purple',
-    duration: '45-60 min',
+    duration: '60 min',
   },
 ];
 
@@ -61,7 +69,7 @@ export default function BookSessionPage() {
         setMentor(res.data);
       } catch (error) {
         toast.error('Mentor not found');
-        navigate('/mentors');
+        navigate('/my-mentors');
       } finally {
         setLoading(false);
       }
@@ -74,6 +82,12 @@ export default function BookSessionPage() {
       return toast.error('Please fill all required fields');
     }
 
+    const selectedSessionType = sessionTypes.find(t => t.id === selectedType);
+    const duration = selectedSessionType?.id === 'emergency_help' ? 25
+      : selectedSessionType?.id === 'quick_doubt' ? 15
+      : selectedSessionType?.id === 'project_guidance' ? 90
+      : 60;
+
     setBooking(true);
     try {
       const dateTime = new Date(`${selectedDate}T${selectedTime}`);
@@ -82,7 +96,7 @@ export default function BookSessionPage() {
         skillId: selectedSkill || undefined,
         sessionType: selectedType,
         date: dateTime.toISOString(),
-        duration: 60,
+        duration,
       });
       toast.success('Session booked! Waiting for mentor approval.');
       navigate('/sessions');

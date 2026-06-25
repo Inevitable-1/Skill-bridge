@@ -6,29 +6,40 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.listeners = new Map();
+    this.pendingListeners = new Map();
   }
 
   connect(token) {
     if (this.socket?.connected) return;
 
-    this.socket = io(SOCKET_URL, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-    });
+    try {
+      this.socket = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+      });
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected');
-    });
+      this.socket.on('connect', () => {
+        console.log('Socket connected');
+        // Register any pending listeners
+        this.pendingListeners.forEach((callbacks, event) => {
+          callbacks.forEach(cb => this.socket.on(event, cb));
+        });
+        this.pendingListeners.clear();
+      });
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
+      this.socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+      });
 
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error.message);
-    });
+      this.socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error.message);
+      });
 
-    return this.socket;
+      return this.socket;
+    } catch (error) {
+      console.error('Socket initialization failed:', error.message);
+      return null;
+    }
   }
 
   disconnect() {
@@ -36,6 +47,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.listeners.clear();
+      this.pendingListeners.clear();
     }
   }
 
@@ -43,9 +55,28 @@ class SocketService {
     return this.socket;
   }
 
+  isConnected() {
+    return this.socket?.connected || false;
+  }
+
   on(event, callback) {
-    if (!this.socket) return;
-    this.socket.on(event, callback);
+    if (!this.socket) {
+      // Socket not created yet, queue for later
+      if (!this.pendingListeners.has(event)) {
+        this.pendingListeners.set(event, []);
+      }
+      this.pendingListeners.get(event).push(callback);
+      return;
+    }
+    if (this.socket.connected) {
+      this.socket.on(event, callback);
+    } else {
+      // Socket exists but not connected yet, queue for when it connects
+      if (!this.pendingListeners.has(event)) {
+        this.pendingListeners.set(event, []);
+      }
+      this.pendingListeners.get(event).push(callback);
+    }
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
@@ -53,12 +84,18 @@ class SocketService {
   }
 
   off(event, callback) {
-    if (!this.socket) return;
-    this.socket.off(event, callback);
+    if (this.socket) {
+      this.socket.off(event, callback);
+    }
     const cbs = this.listeners.get(event);
     if (cbs) {
       const idx = cbs.indexOf(callback);
       if (idx > -1) cbs.splice(idx, 1);
+    }
+    const pending = this.pendingListeners.get(event);
+    if (pending) {
+      const idx = pending.indexOf(callback);
+      if (idx > -1) pending.splice(idx, 1);
     }
   }
 

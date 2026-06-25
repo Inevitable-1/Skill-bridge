@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 
 const sessionTypes = {
   quick_doubt: { label: 'Quick Doubt', color: 'yellow', icon: '❓' },
+  emergency_help: { label: 'Emergency Help', color: 'red', icon: '🚨' },
   learning: { label: 'Learning Session', color: 'blue', icon: '📚' },
   project_guidance: { label: 'Project Guidance', color: 'green', icon: '🚀' },
   interview_prep: { label: 'Interview Prep', color: 'purple', icon: '🎯' },
@@ -94,7 +95,7 @@ export default function SessionsPage() {
               Manage your mentorship sessions
             </p>
           </div>
-          <Link to="/mentors" className="btn-primary flex items-center gap-2">
+          <Link to="/my-mentors" className="btn-primary flex items-center gap-2">
             <Calendar className="w-4 h-4" />
             Book New
           </Link>
@@ -151,8 +152,8 @@ export default function SessionsPage() {
             <p className="text-gray-500 dark:text-gray-400 mb-4">
               Book a session with a mentor to get started
             </p>
-            <Link to="/mentors" className="btn-primary inline-flex items-center gap-2">
-              Find Mentors
+            <Link to="/my-mentors" className="btn-primary inline-flex items-center gap-2">
+              My Mentors
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
@@ -171,7 +172,11 @@ export default function SessionsPage() {
                   key={session.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="card p-5 hover:shadow-lg transition-all duration-200"
+                  className={`card p-5 hover:shadow-lg transition-all duration-200 ${
+                    session.session_type === 'emergency_help' && session.status === 'pending'
+                      ? 'border-2 border-red-500 dark:border-red-400'
+                      : ''
+                  }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="text-3xl">{typeInfo.icon}</div>
@@ -181,7 +186,17 @@ export default function SessionsPage() {
                           {typeInfo.label}
                         </h3>
                         <span className={statusInfo.class}>{statusInfo.label}</span>
+                        {session.session_type === 'emergency_help' && (
+                          <span className="text-xs px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full font-medium">
+                            {session.duration} min
+                          </span>
+                        )}
                       </div>
+                      {session.ai_analysis && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 italic">
+                          AI Analysis: {session.ai_analysis}
+                        </p>
+                      )}
                       <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
                         <span className="flex items-center gap-1">
                           <User className="w-3 h-3" />

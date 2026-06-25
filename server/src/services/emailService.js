@@ -68,4 +68,36 @@ const sendPasswordResetEmail = async (email, token) => {
   return sendEmail(email, 'Reset your SkillBridge password', html);
 };
 
-module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail };
+const sendApprovalEmail = async (email, name, role) => {
+  const loginUrl = `${config.clientUrl}/login`;
+  const roleLabel = role === 'senior' ? 'Mentor' : 'Developer';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #16a34a;">Congratulations!</h2>
+      <p>Dear ${name},</p>
+      <p>Your ${roleLabel} account has been approved.</p>
+      <p>You can now login and start ${role === 'senior' ? 'mentoring students' : 'contributing to the platform'}.</p>
+      <a href="${loginUrl}" style="display: inline-block; padding: 12px 24px; background-color: #16a34a; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+        Login Now
+      </a>
+      <p style="color: #666; font-size: 14px;">Welcome to the SkillBridge community!</p>
+    </div>
+  `;
+  return sendEmail(email, 'SkillBridge Account Approved', html);
+};
+
+const sendRejectionEmail = async (email, name, reason) => {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #dc2626;">Application Update</h2>
+      <p>Dear ${name},</p>
+      <p>We regret to inform you that your application was not approved.</p>
+      ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+      <p>If you have questions, please contact our support team.</p>
+      <p style="color: #666; font-size: 14px;">Thank you for your interest in SkillBridge.</p>
+    </div>
+  `;
+  return sendEmail(email, 'Application Update', html);
+};
+
+module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, sendApprovalEmail, sendRejectionEmail };

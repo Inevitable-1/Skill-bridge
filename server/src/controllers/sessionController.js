@@ -4,14 +4,14 @@ const { createNotification } = require('../utils/notifications');
 
 const createSession = async (req, res) => {
   try {
-    const { mentorId, skillId, sessionType, date, duration } = req.body;
+    const { mentorId, skillId, sessionType, date, duration, aiAnalysis } = req.body;
     const menteeId = req.user.id;
 
     if (!mentorId || !sessionType || !date) {
       return res.status(400).json({ error: 'Mentor, session type, and date are required' });
     }
 
-    const validTypes = ['quick_doubt', 'learning', 'project_guidance', 'interview_prep'];
+    const validTypes = ['quick_doubt', 'emergency_help', 'learning', 'project_guidance', 'interview_prep'];
     if (!validTypes.includes(sessionType)) {
       return res.status(400).json({ error: 'Invalid session type' });
     }
@@ -21,13 +21,21 @@ const createSession = async (req, res) => {
       return res.status(404).json({ error: 'Mentor not found' });
     }
 
+    // Set duration based on session type
+    let sessionDuration = duration || 60;
+    if (sessionType === 'quick_doubt') sessionDuration = 15;
+    else if (sessionType === 'emergency_help') sessionDuration = 25;
+    else if (sessionType === 'learning') sessionDuration = 60;
+    else if (sessionType === 'project_guidance') sessionDuration = 90;
+    else if (sessionType === 'interview_prep') sessionDuration = 60;
+
     const meetingLink = uuidv4();
 
     const result = await pool.query(
-      `INSERT INTO sessions (mentor_id, mentee_id, skill_id, session_type, date, duration, meeting_link)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO sessions (mentor_id, mentee_id, skill_id, session_type, date, duration, meeting_link, ai_analysis)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [mentorId, menteeId, skillId || null, sessionType, date, duration || 60, meetingLink]
+      [mentorId, menteeId, skillId || null, sessionType, date, sessionDuration, meetingLink, aiAnalysis || null]
     );
 
     await pool.query(
@@ -187,7 +195,7 @@ const getMySessions = async (req, res) => {
       query += ` AND s.mentee_id = $1`;
     }
 
-    query += ` ORDER BY s.date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    query += ` ORDER BY CASE WHEN s.session_type = 'emergency_help' AND s.status = 'pending' THEN 0 ELSE 1 END, s.date DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), offset);
 
     const result = await pool.query(query, params);

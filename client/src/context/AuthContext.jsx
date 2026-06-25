@@ -4,6 +4,20 @@ import socketService from '../services/socket';
 
 const AuthContext = createContext(null);
 
+export function getDashboardPath(role) {
+  switch (role) {
+    case 'admin':
+      return '/admin/dashboard';
+    case 'senior':
+      return '/senior/dashboard';
+    case 'developer':
+      return '/dashboard';
+    case 'junior':
+    default:
+      return '/dashboard';
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('skillbridge_token'));
@@ -13,7 +27,11 @@ export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem('skillbridge_user');
     if (savedUser && token) {
       setUser(JSON.parse(savedUser));
-      socketService.connect(token);
+      try {
+        socketService.connect(token);
+      } catch {
+        // Socket connection failed, continue without real-time features
+      }
     }
     setLoading(false);
   }, []);
@@ -25,18 +43,32 @@ export function AuthProvider({ children }) {
     localStorage.setItem('skillbridge_user', JSON.stringify(userData));
     setToken(newToken);
     setUser(userData);
-    socketService.connect(newToken);
+    try {
+      socketService.connect(newToken);
+    } catch {
+      // Socket connection failed, continue without real-time features
+    }
     return userData;
   }, []);
 
   const register = useCallback(async (data) => {
     const response = await authAPI.register(data);
-    const { token: newToken, user: userData } = response.data;
+    const { token: newToken, user: userData, accountStatus, message } = response.data;
+
+    // If pending approval, don't store token or login
+    if (accountStatus === 'pending') {
+      return { accountStatus: 'pending', message, user: userData };
+    }
+
     localStorage.setItem('skillbridge_token', newToken);
     localStorage.setItem('skillbridge_user', JSON.stringify(userData));
     setToken(newToken);
     setUser(userData);
-    socketService.connect(newToken);
+    try {
+      socketService.connect(newToken);
+    } catch {
+      // Socket connection failed, continue without real-time features
+    }
     return userData;
   }, []);
 
